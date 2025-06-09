@@ -4,7 +4,101 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Floral Artefacts</title>
-  <script async src="https://pixels.experience.com/2.1.2/399183/67617471e418803c90a98af8/67617472e418803c90a98afb.js"></script>
+ <script type="rocketlazyloadscript">
+            const domainKey = '6842ece6b480b2497a635832'
+            const proApiUrl = 'https://proapi.qa.experience.com'
+            
+const getSessionCookie = name => {
+  const matches = document.cookie.match(
+    new RegExp(`(?:^|;)\s*${name}=([^;]*)`)
+  )
+  return matches ? decodeURIComponent(matches[1]) : ""
+}
+
+function getConsentCookie(cookieString, key) {
+  if (!cookieString) return
+  const cookies = decodeURIComponent(cookieString).split("; ")
+  for (let cookie of cookies) {
+    if (cookie.startsWith(key + "=")) {
+      return decodeURIComponent(cookie.substring(key.length + 1))
+    }
+  }
+  return null // if the key isn't found
+}
+const generateSessionId = () => {
+  const randomString =
+    Math.random().toString(36).substring(2, 15) +
+    Math.random().toString(36).substring(2, 15)
+  const timestamp = Date.now().toString(36)
+  return randomString + timestamp
+}
+const getSessionId = () => {
+  let sessionId = getSessionCookie("ExpSessionId")
+  if (!sessionId) {
+    sessionId = generateSessionId()
+    document.cookie = `ExpSessionId=${sessionId}; path=/;
+SameSite=Lax; Secure`
+  }
+  return sessionId
+}
+
+const hasUserConsent = () => {
+  const consentString = getConsentCookie(document.cookie, "OptanonConsent")
+  return consentString?.includes("4:1") || consentString?.includes("C0004:1") // marketing cookie value
+}
+
+const fetchPixel = async () => {
+  try {
+    const params = new URLSearchParams({
+      domain: domainKey,
+      ownerType: "agent",
+      type: "other",
+      requestPageUrl: encodeURIComponent(window.location.href),
+      userSessionId: getSessionId(),
+      cookieConsent: hasUserConsent(),
+    })
+    const response = await fetch(
+     `${proApiUrl}/api/pixel/v1/domain/pixel?${params.toString()}`
+    )
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`)
+    }
+    const data = await response.json()
+    if (data.url) {
+      return data.url
+    } else {
+      console.error("Pixel URL not found")
+      return null
+    }
+  } catch (error) {
+    console.error("Error fetching pixel:", error)
+    return null
+  }
+}
+const attachPixel = pixelUrl => {
+  if (window.ExpDataCollector && typeof window.ExpDataCollector === "object") {
+    delete window.ExpDataCollector
+  }
+  const script = document.createElement("script")
+  script.src = pixelUrl
+  script.async = true
+  script.onload = () => console.log("ExpDataCollector loaded")
+  script.onerror = () => console.error("Failed to load ExpDataCollector")
+  document.body.appendChild(script)
+}
+const loadPixel = async () => {
+  const pixelUrl = await fetchPixel()
+  if (pixelUrl) {
+    attachPixel(pixelUrl)
+  }
+}
+if (document.readyState === "loading") {
+  document.addEventListener("DOMContentLoaded", loadPixel)
+} else {
+  loadPixel()
+}
+</script>
+
 </head>
 <body>
     <h1>Hello, Pixels!</h1>
